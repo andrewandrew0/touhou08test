@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 (() => {
   // src/core/pacing.ts
   var STEP_MS = 1e3 / 60;
@@ -13833,11 +13833,15 @@ var CHARACTERS = {
         r.ctx.restore();
         this.markPass("bullets");
         r.ctx.save();
+        const offscreenItems = [];
         for (const it of this.items) {
           const above = it.y < 0;
+          if (above) {
+            offscreenItems.push(it);
+          }
           const slot2 = TH08_ITEM_TYPE_SLOT[it.type];
           const frame = slot2 != null ? this.th08ItemRunners[slot2]?.spriteFrame() : null;
-          if (frame) {
+          if (frame && !above) {
             r.drawSpriteInBatch(
               frame.imageKey,
               frame.x,
@@ -13845,15 +13849,37 @@ var CHARACTERS = {
               frame.w,
               frame.h,
               ox + it.x,
-              oy + Math.max(8, it.y),
+              oy + it.y,
               0,
               1,
-              frame.alpha / 255 * (above ? 0.85 : 1),
+              frame.alpha / 255,
               frame.blendAdd ? "lighter" : "source-over"
             );
           }
         }
         r.ctx.restore();
+        if (offscreenItems.length > 0) {
+          r.ctx.save();
+          for (const it of offscreenItems) {
+            const ix = Math.max(PLAYFIELD.x + 8, Math.min(PLAYFIELD.x + PLAYFIELD.width - 8, ox + it.x));
+            const iy = PLAYFIELD.y + 7;
+            const isPower = it.type === "powerSmall" || it.type === "powerBig" || it.type === "powerFull";
+            const isPoint = it.type === "point" || it.type === "pointSmall" || it.type === "pointStar";
+            const col = isPower ? "#ff3333" : (isPoint ? "#3388ff" : "#ffff33");
+            const borderCol = "#ffffff";
+            r.ctx.beginPath();
+            r.ctx.moveTo(ix, iy - 5);
+            r.ctx.lineTo(ix + 6, iy + 5);
+            r.ctx.lineTo(ix - 6, iy + 5);
+            r.ctx.closePath();
+            r.ctx.fillStyle = col;
+            r.ctx.fill();
+            r.ctx.lineWidth = 1.5;
+            r.ctx.strokeStyle = borderCol;
+            r.ctx.stroke();
+          }
+          r.ctx.restore();
+        }
         this.markPass("items");
         const p = this.playerObj;
         if (this.th08DeathWhiteFrames > 0) {
